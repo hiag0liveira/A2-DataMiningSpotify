@@ -1,16 +1,16 @@
-# Importar as bibliotecas necessárias
+# Importar bibliotecas
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.model_selection import train_test_split
-from sklearn.linear_model import LinearRegression, Ridge, Lasso
+from sklearn.linear_model import LinearRegression, Ridge, Lasso, ElasticNet, BayesianRidge
 from sklearn.metrics import mean_squared_error, r2_score
 from sklearn.cluster import KMeans, DBSCAN
 from sklearn.preprocessing import StandardScaler, LabelEncoder
 from matplotlib.backends.backend_pdf import PdfPages
 
-# 1) Carregar a base de dados
+# 1) Carregar dados
 df = pd.read_csv('./data/spotify_history.csv')
 df = df.sample(n=20000, random_state=42)
 
@@ -28,14 +28,16 @@ selected_features = ['shuffle', 'skipped', 'reason_start', 'reason_end', 'platfo
 X = df[selected_features]
 y = df['ms_played']
 
-# 3) Dividir dados
+# 3) Dividir
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-# 4) Modelos de regressão (apenas modelos lineares agora)
+# 4) Modelos de regressão (SGD removido)
 models = {
     'Linear Regression': LinearRegression(),
     'Ridge Regression': Ridge(),
-    'Lasso Regression': Lasso()
+    'Lasso Regression': Lasso(),
+    'ElasticNet Regression': ElasticNet(),
+    'Bayesian Ridge Regression': BayesianRidge()
 }
 
 regression_results = []
@@ -63,7 +65,7 @@ dbscan_labels = dbscan.fit_predict(X_cluster)
 kmeans_n_clusters = len(np.unique(kmeans_labels))
 dbscan_n_clusters = len(np.unique(dbscan_labels))
 
-# 6) Gerar PDF estruturado
+# 6) Gerar PDF
 with PdfPages('relatorio_spotify.pdf') as pdf:
 
     ## Página 1 - Introdução
@@ -99,38 +101,39 @@ with PdfPages('relatorio_spotify.pdf') as pdf:
     pdf.savefig()
     plt.close()
 
-    ## Página 3 - Regressão
-    fig, ax = plt.subplots(figsize=(11, 4))
+    ## Página 3 - Regressão (descrição e resultados)
+    fig, ax = plt.subplots(figsize=(11, 8.5))
     ax.axis('off')
     texto = (
         "Modelos de Regressão Aplicados:\n\n"
-        "- Linear Regression\n"
-        "- Ridge Regression\n"
-        "- Lasso Regression\n\n"
+        "- Linear Regression: método clássico para prever uma variável contínua.\n"
+        "- Ridge Regression: regressão linear com regularização para evitar overfitting.\n"
+        "- Lasso Regression: regressão linear que pode zerar coeficientes irrelevantes.\n"
+        "- ElasticNet: combinação de Ridge e Lasso.\n"
+        "- Bayesian Ridge: incorpora probabilidade na previsão dos coeficientes.\n\n"
         "Resultados obtidos:\n"
     )
     for result in regression_results:
         texto += result + "\n"
 
-    texto += (
-        "\nConclusão:\n"
-        "- A regressão linear apresentou resultados consistentes.\n"
-        "- A variabilidade explicada (R²) ficou em torno de 59%-60%.\n"
-    )
-    ax.text(0.05, 0.95, texto, verticalalignment='top', fontsize=11)
+    texto += "\nConclusão:\n- Modelos lineares e regularizados apresentaram desempenhos muito próximos."
+
+    ax.text(0.05, 0.95, texto, verticalalignment='top', fontsize=10)
     pdf.savefig()
     plt.close()
 
-    fig, ax = plt.subplots(figsize=(11, 8.5))
-    ax.scatter(y_test, y_preds['Linear Regression'], alpha=0.5)
-    ax.plot([y_test.min(), y_test.max()], [y_test.min(), y_test.max()], 'r--')
-    ax.set_xlabel('Valor Real (ms_played)')
-    ax.set_ylabel('Valor Previsto')
-    ax.set_title('Linear Regression: Real vs Previsto')
-    pdf.savefig()
-    plt.close()
+    ## Página 4 - Gráficos de Regressão Real vs Previsto
+    for name, preds in y_preds.items():
+        fig, ax = plt.subplots(figsize=(11, 8.5))
+        ax.scatter(y_test, preds, alpha=0.5)
+        ax.plot([y_test.min(), y_test.max()], [y_test.min(), y_test.max()], 'r--')
+        ax.set_xlabel('Valor Real (ms_played)')
+        ax.set_ylabel('Valor Previsto')
+        ax.set_title(f'{name}: Real vs Previsto')
+        pdf.savefig()
+        plt.close()
 
-    ## Página 4 - Clusterização
+    ## Página 5 - Clusterização
     fig, ax = plt.subplots(figsize=(11, 4))
     ax.axis('off')
     texto = (
@@ -161,15 +164,15 @@ with PdfPages('relatorio_spotify.pdf') as pdf:
     pdf.savefig()
     plt.close()
 
-    ## Página 5 - Conclusão Final
+    ## Página 6 - Conclusão Final
     fig, ax = plt.subplots(figsize=(11, 8.5))
     ax.axis('off')
     texto = (
         "Conclusões Gerais:\n\n"
         "- O pré-processamento dos dados foi essencial para a modelagem.\n"
-        "- A regressão linear obteve desempenho satisfatório.\n"
-        "- A clusterização revelou padrões interessantes de comportamento musical.\n"
-        "- O projeto foi concluído com sucesso, atingindo os objetivos propostos."
+        "- Modelos lineares e regularizados tiveram desempenhos semelhantes.\n"
+        "- A clusterização identificou padrões de reprodução musical.\n"
+        "- O projeto foi concluído com sucesso."
     )
     ax.text(0.05, 0.95, texto, verticalalignment='top', fontsize=12)
     pdf.savefig()
