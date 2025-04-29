@@ -24,6 +24,14 @@ for col in ['reason_start', 'reason_end', 'platform', 'artist_name']:
     le = LabelEncoder()
     df[col] = le.fit_transform(df[col].astype(str))
 
+# Verificar dados nulos
+missing_values = df.isnull().sum()
+total_missing = missing_values.sum()
+
+# Se houver linhas com dados nulos, remove
+if total_missing > 0:
+    df = df.dropna()
+
 selected_features = ['shuffle', 'skipped', 'reason_start', 'reason_end', 'platform', 'artist_name']
 X = df[selected_features]
 y = df['ms_played']
@@ -31,7 +39,7 @@ y = df['ms_played']
 # 3) Dividir
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-# 4) Modelos de regressão (SGD removido)
+# 4) Modelos de regressão
 models = {
     'Linear Regression': LinearRegression(),
     'Ridge Regression': Ridge(),
@@ -81,27 +89,36 @@ with PdfPages('relatorio_spotify.pdf') as pdf:
     pdf.savefig()
     plt.close()
 
-    ## Página 2 - Pré-processamento
-    fig, ax = plt.subplots(figsize=(11, 4))
+    ## Página 2 - Pré-processamento (Texto detalhado)
+    fig, ax = plt.subplots(figsize=(11, 8.5))
     ax.axis('off')
     texto = (
-        "Pré-processamento:\n\n"
-        "- Seleção de 20.000 registros.\n"
-        "- Conversão de shuffle para 0/1.\n"
-        "- Codificação de variáveis categóricas: 'reason_start', 'reason_end', 'platform', 'artist_name'.\n"
-        "- Definição de variáveis independentes e variável alvo (ms_played).\n"
+        "Pré-processamento dos Dados:\n\n"
+        "- Seleção de 20.000 registros aleatórios.\n"
+        "- Conversão da variável 'shuffle' para valores 0 (False) e 1 (True).\n"
+        "- Codificação numérica de variáveis categóricas ('reason_start', 'reason_end', 'platform', 'artist_name').\n"
+        "- Verificação de dados faltantes:\n"
+        f"  - Total de valores nulos encontrados: {total_missing}\n"
     )
+    if total_missing > 0:
+        texto += "- Linhas com valores nulos foram removidas.\n"
+    else:
+        texto += "- Nenhuma linha precisou ser removida.\n"
+
+    texto += "- Dados prontos para a divisão entre treino e teste."
+
     ax.text(0.05, 0.95, texto, verticalalignment='top', fontsize=11)
     pdf.savefig()
     plt.close()
 
+    ## Página 3 - Distribuição ms_played
     fig, ax = plt.subplots(figsize=(11, 8.5))
     sns.histplot(df['ms_played'], bins=50, kde=True, ax=ax)
     ax.set_title('Distribuição do Tempo de Reprodução (ms_played)')
     pdf.savefig()
     plt.close()
 
-    ## Página 3 - Regressão (descrição e resultados)
+    ## Página 4 - Regressão (descrição e resultados)
     fig, ax = plt.subplots(figsize=(11, 8.5))
     ax.axis('off')
     texto = (
@@ -122,7 +139,7 @@ with PdfPages('relatorio_spotify.pdf') as pdf:
     pdf.savefig()
     plt.close()
 
-    ## Página 4 - Gráficos de Regressão Real vs Previsto
+    ## Página 5 - Gráficos de Regressão Real vs Previsto
     for name, preds in y_preds.items():
         fig, ax = plt.subplots(figsize=(11, 8.5))
         ax.scatter(y_test, preds, alpha=0.5)
@@ -133,7 +150,7 @@ with PdfPages('relatorio_spotify.pdf') as pdf:
         pdf.savefig()
         plt.close()
 
-    ## Página 5 - Clusterização
+    ## Página 6 - Clusterização
     fig, ax = plt.subplots(figsize=(11, 4))
     ax.axis('off')
     texto = (
@@ -163,15 +180,37 @@ with PdfPages('relatorio_spotify.pdf') as pdf:
     plt.tight_layout()
     pdf.savefig()
     plt.close()
+    ## Nova página - Comparação de desempenho dos modelos (barras % de R²)
+    fig, ax = plt.subplots(figsize=(11, 8.5))
 
-    ## Página 6 - Conclusão Final
+    # Preparar dados
+    model_names = []
+    r2_scores = []
+    for result in regression_results:
+        parts = result.split(", R2 = ")
+        model_name = parts[0].split(":")[0]
+        r2_value = float(parts[1])
+        model_names.append(model_name)
+        r2_scores.append(r2_value * 100)  # Convertendo para %
+
+    ax.barh(model_names, r2_scores, color='skyblue')
+    ax.set_xlim(0, 100)
+    ax.set_xlabel('R² (%)')
+    ax.set_title('Comparação de Desempenho dos Modelos de Regressão')
+    for index, value in enumerate(r2_scores):
+        ax.text(value + 1, index, f'{value:.2f}%', va='center')
+    plt.tight_layout()
+    pdf.savefig()
+    plt.close()
+
+    ## Página 7 - Conclusão Final
     fig, ax = plt.subplots(figsize=(11, 8.5))
     ax.axis('off')
     texto = (
         "Conclusões Gerais:\n\n"
-        "- O pré-processamento dos dados foi essencial para a modelagem.\n"
+        "- O pré-processamento dos dados garantiu qualidade na modelagem.\n"
         "- Modelos lineares e regularizados tiveram desempenhos semelhantes.\n"
-        "- A clusterização identificou padrões de reprodução musical.\n"
+        "- A clusterização identificou padrões de comportamento musical.\n"
         "- O projeto foi concluído com sucesso."
     )
     ax.text(0.05, 0.95, texto, verticalalignment='top', fontsize=12)
